@@ -1,0 +1,2 @@
+# CryptoSignalBot
+Para señales
