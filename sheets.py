@@ -10,7 +10,6 @@
 
 import json, logging
 from config import GSHEETS_CREDS, GSHEETS_SHEET_ID, CAPITAL
-from utils  import _nombre_mes
 
 logger = logging.getLogger(__name__)
 
