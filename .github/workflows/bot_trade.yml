@@ -1,0 +1,90 @@
+name: TradeBot v1.0
+
+on:
+  schedule:
+    - cron: '0 * * * *'   # Cada hora — 24/7
+  workflow_dispatch:
+    inputs:
+      force_run:
+        description: 'Forzar análisis ahora (true/false)'
+        required: false
+        default: 'false'
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: tradebot-v1
+  cancel-in-progress: false
+
+jobs:
+  run-tradebot-v1:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: ✅ Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🐍 Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 📦 Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: 📥 Descargar historial
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: tradebot-historial
+          path: ./bot_data/
+          if_no_artifact_found: warn
+
+      - name: 📋 Verificar historial
+        run: |
+          if [ -f "./bot_data/historial.json" ]; then
+            TRADES=$(python3 -c "import json; d=json.load(open('./bot_data/historial.json')); print(len(d.get('trades',[])))")
+            echo "✅ Historial: $TRADES trades"
+          else
+            echo "⚠️ Sin historial previo"
+          fi
+
+      - name: 🤖 Ejecutar TradeBot v1.0
+        env:
+          BOT_TOKEN:                   ${{ secrets.BOT_TOKEN }}
+          CHAT_ID:                     ${{ secrets.CHAT_ID }}
+          BINANCE_API_KEY:             ${{ secrets.BINANCE_API_KEY }}
+          BINANCE_SECRET_KEY:          ${{ secrets.BINANCE_SECRET_KEY }}
+          CAPITAL:                     ${{ secrets.CAPITAL }}
+          SCORE_MINIMO:                ${{ secrets.SCORE_MINIMO }}
+          GEMINI_API_KEY:              ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_SHEET_ID:             ${{ secrets.GOOGLE_SHEET_ID }}
+          GITHUB_TOKEN:                ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY:           ${{ github.repository }}
+        run: python main.py
+
+      - name: 📤 Guardar historial
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tradebot-historial
+          path: ./bot_data/historial.json
+          retention-days: 90
+          overwrite: true
+
+      - name: 💾 Backup en repo
+        if: success()
+        run: |
+          if [ -f "./bot_data/historial.json" ]; then
+            cp ./bot_data/historial.json ./historial_backup.json
+            git config user.email "tradebot@github-actions"
+            git config user.name "TradeBot Actions"
+            git add historial_backup.json
+            git diff --staged --quiet || git commit -m "backup: trades $(date -u '+%Y-%m-%d %H:%M') UTC"
+            git push || echo "⚠️ Push falló"
+          fi
