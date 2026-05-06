@@ -1,0 +1,17 @@
+{
+  "trades": [],
+  "apostados_ids": [],
+  "martingala": {
+    "nivel": 1,
+    "racha_perdidas": 0,
+    "activa": true,
+    "stop_notificado": false
+  },
+  "stats": {
+    "total": 0,
+    "ganadas": 0,
+    "perdidas": 0,
+    "pendientes": 0,
+    "ganancia_neta": 0
+  }
+}
